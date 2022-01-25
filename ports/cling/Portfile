@@ -1,0 +1,36 @@
+PortSystem              1.0
+PortGroup               github 1.0
+PortGroup               cmake 1.0
+
+name                    cling
+description             Interactive C++ interpreter
+long_description        {*}${description}
+homepage                https://root.cern/cling/
+
+github.setup            root-project cling v0.9
+platforms               darwin
+
+maintainers             @saagarjha
+
+fetch.type              git
+depends_fetch-append    bin:git:git
+distfiles
+
+cmake.out_of_source     yes
+cmake.install_prefix    ${prefix}/libexec/cling
+
+patchfiles              0001-Add-support-for-interrupting-execution-with-C.patch
+
+fetch {
+	system "git clone http://root.cern/git/llvm.git ${worksrcpath}"
+	system "git -C ${worksrcpath} checkout cling-${github.version}"
+	system "git clone http://root.cern/git/cling.git ${worksrcpath}/tools/cling"
+	system "git -C ${worksrcpath}/tools/cling checkout ${github.version}"
+	system "git clone http://root.cern/git/clang.git ${worksrcpath}/tools/clang"
+	system "git -C ${worksrcpath}/tools/clang checkout cling-${github.version}"
+}
+
+post-destroot {
+	xinstall -d ${destroot}${prefix}/bin
+	ln -s ${cmake.install_prefix}/bin/cling ${destroot}${prefix}/bin/cling
+}

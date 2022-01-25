@@ -1,0 +1,146 @@
+From ca8ef829853463e56c753a469faa4b249ebc2eec Mon Sep 17 00:00:00 2001
+From: Saagar Jha <saagar@saagarjha.com>
+Date: Fri, 15 Jun 2018 22:12:21 -0700
+Subject: [PATCH] Add support for interrupting execution with ^C
+
+---
+ include/cling/Interpreter/Interpreter.h |  2 ++
+ include/cling/Utils/Signal.h            | 20 ++++++++++++++++++++
+ lib/Interpreter/Interpreter.cpp         | 11 ++++++++---
+ lib/Utils/CMakeLists.txt                |  1 +
+ lib/Utils/Signal.cpp                    | 21 +++++++++++++++++++++
+ tools/driver/cling.cpp                  |  2 ++
+ 6 files changed, 54 insertions(+), 3 deletions(-)
+ create mode 100644 include/cling/Utils/Signal.h
+ create mode 100644 lib/Utils/Signal.cpp
+
+diff --git tools/cling/include/cling/Interpreter/Interpreter.h.orig tools/cling/include/cling/Interpreter/Interpreter.h
+index 93195bc9..b7bc487a 100644
+--- tools/cling/include/cling/Interpreter/Interpreter.h.orig
++++ tools/cling/include/cling/Interpreter/Interpreter.h
+@@ -136,6 +136,8 @@ namespace cling {
+       kExeUnkownFunction,
+       ///\brief The Transaction had no module (probably an error in CodeGen).
+       kExeNoModule,
++      ///\brief Execution was interrupted (recieved a SIGINT during execution).
++      kExeInterrupted,
+ 
+       ///\brief Number of possible results.
+       kNumExeResults
+diff --git tools/cling/include/cling/Utils/Signal.h.orig tools/cling/include/cling/Utils/Signal.h
+new file mode 100644
+index 00000000..73a7dbb9
+--- /dev/null
++++ tools/cling/include/cling/Utils/Signal.h
+@@ -0,0 +1,20 @@
++//------------------------------------------------------------------------------
++// CLING - the C++ LLVM-based InterpreterG :)
++// author:  Saagar Jha <saagar@saagarjha.com>
++//
++// This file is dual-licensed: you can choose to license it under the University
++// of Illinois Open Source License or the GNU Lesser General Public License. See
++// LICENSE.TXT for details.
++//------------------------------------------------------------------------------
++
++#ifndef CLING_SIGNAL_H
++#define CLING_SIGNAL_H
++
++#include <csignal>
++#include <csetjmp>
++
++extern jmp_buf before_execution;
++
++void InterruptHandler();
++
++#endif // CLING_SIGNAL_H
+diff --git tools/cling/lib/Interpreter/Interpreter.cpp.orig tools/cling/lib/Interpreter/Interpreter.cpp
+index e3d2c647..45603975 100644
+--- tools/cling/lib/Interpreter/Interpreter.cpp.orig
++++ tools/cling/lib/Interpreter/Interpreter.cpp
+@@ -39,6 +39,7 @@
+ #include "cling/Utils/AST.h"
+ #include "cling/Utils/Casting.h"
+ #include "cling/Utils/Output.h"
++#include "cling/Utils/Signal.h"
+ #include "cling/Utils/SourceNormalization.h"
+ 
+ #include "clang/AST/ASTContext.h"
+@@ -1158,9 +1159,13 @@ namespace cling {
+ 
+     std::string mangledNameIfNeeded;
+     utils::Analyze::maybeMangleDeclName(FD, mangledNameIfNeeded);
+-    IncrementalExecutor::ExecutionResult ExeRes =
+-       m_Executor->executeWrapper(mangledNameIfNeeded, res);
+-    return ConvertExecutionResult(ExeRes);
++    if (!setjmp(before_execution)) { // If the user interrupted execution, bail
++      IncrementalExecutor::ExecutionResult ExeRes =
++        m_Executor->executeWrapper(mangledNameIfNeeded, res);
++      return ConvertExecutionResult(ExeRes);
++    } else {
++      return kExeInterrupted;
++    }
+   }
+ 
+   const FunctionDecl* Interpreter::DeclareCFunction(StringRef name,
+diff --git tools/cling/lib/Utils/CMakeLists.txt.orig tools/cling/lib/Utils/CMakeLists.txt
+index 327c9fff..dd4642bc 100644
+--- tools/cling/lib/Utils/CMakeLists.txt
++++ tools/cling/lib/Utils/CMakeLists.txt
+@@ -55,6 +55,7 @@ add_cling_library(clingUtils OBJECT
+   Paths.cpp
+   PlatformPosix.cpp
+   PlatformWin.cpp
++  Signal.cpp
+   SourceNormalization.cpp
+   UTF8.cpp
+   Validation.cpp
+diff --git tools/cling/lib/Utils/Signal.cpp.orig tools/cling/lib/Utils/Signal.cpp
+new file mode 100644
+index 00000000..afd7786a
+--- /dev/null
++++ tools/cling/lib/Utils/Signal.cpp
+@@ -0,0 +1,21 @@
++//------------------------------------------------------------------------------
++// CLING - the C++ LLVM-based InterpreterG :)
++// author:  Saagar Jha <saagar@saagarjha.com>
++//
++// This file is dual-licensed: you can choose to license it under the University
++// of Illinois Open Source License or the GNU Lesser General Public License. See
++// LICENSE.TXT for details.
++//------------------------------------------------------------------------------
++
++#include "cling/Utils/Signal.h"
++
++#include "llvm/Support/Signals.h"
++
++jmp_buf before_execution;
++
++void InterruptHandler() {
++  // LLVM automatically resets the handler after every call. Set it back to our
++  // handler for the next time we get a SIGINT.
++  llvm::sys::SetInterruptFunction(InterruptHandler);
++  longjmp(before_execution, 1);
++}
+diff --git tools/cling/tools/driver/cling.cpp.orig tools/cling/tools/driver/cling.cpp
+index 15089dfe..bf3e0d2f 100644
+--- tools/cling/tools/driver/cling.cpp.orig
++++ tools/cling/tools/driver/cling.cpp
+@@ -10,6 +10,7 @@
+ #include "cling/Interpreter/Interpreter.h"
+ #include "cling/MetaProcessor/MetaProcessor.h"
+ #include "cling/UserInterface/UserInterface.h"
++#include "cling/Utils/Signal.h"
+ 
+ #include "clang/Basic/LangOptions.h"
+ #include "clang/Frontend/CompilerInstance.h"
+@@ -57,6 +58,7 @@ int main( int argc, char **argv ) {
+   llvm::llvm_shutdown_obj shutdownTrigger;
+ 
+   llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
++  llvm::sys::SetInterruptFunction(InterruptHandler);
+   llvm::PrettyStackTraceProgram X(argc, argv);
+ 
+ #if defined(_WIN32) && defined(_MSC_VER)
+-- 
+2.35.0
+
