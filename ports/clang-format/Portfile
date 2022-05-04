@@ -1,0 +1,23 @@
+PortSystem          1.0
+
+name                clang-format
+version             14
+description         A tool to format C/C++/Java/JavaScript/JSON/Objective-C/Protobuf/C# code
+long_description    {*}${description}
+homepage            https://clang.llvm.org/docs/ClangFormat.html
+
+maintainers         @saagarjha
+
+distfiles
+
+depends_run         port:clang-${version}
+
+use_configure       no
+
+build {
+}
+
+destroot {
+	xinstall -d ${destroot}${prefix}/bin
+	system "ln -s ${prefix}/libexec/llvm-${version}/bin/clang-format ${destroot}${prefix}/bin/clang-format"
+}
