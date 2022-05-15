@@ -1,0 +1,28 @@
+PortSystem              1.0
+PortGroup               github 1.0
+PortGroup               xcodeversion 1.0
+
+name                    unxip
+description             A fast Xcode unarchiver
+long_description        {*}${description}
+
+github.setup            saagarjha unxip v1.1
+platforms               darwin
+
+maintainers             @saagarjha
+
+use_configure           no
+minimum_xcodeversions   {21 13.0}
+
+checksums               rmd160  7fe754bcdd68db9327e7a666e0a8bb58aab9881c \
+                        sha256  c48098a4b23108d1f140d3bb89ed7817444f4bd75423596a9c0d9f3b684e2cd9 \
+                        size    11797
+
+build {
+    system "cd ${worksrcpath} && swiftc -O -parse-as-library unxip.swift"
+}
+
+destroot {
+    xinstall -d ${destroot}${prefix}/bin
+    xinstall ${worksrcpath}/unxip ${destroot}${prefix}/bin/unxip
+}
