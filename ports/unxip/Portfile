@@ -6,7 +6,7 @@ name                    unxip
 description             A fast Xcode unarchiver
 long_description        {*}${description}
 
-github.setup            saagarjha unxip v1.1
+github.setup            saagarjha unxip v1.1.1
 platforms               darwin
 
 maintainers             @saagarjha
@@ -14,9 +14,9 @@ maintainers             @saagarjha
 use_configure           no
 minimum_xcodeversions   {21 13.0}
 
-checksums               rmd160  7fe754bcdd68db9327e7a666e0a8bb58aab9881c \
-                        sha256  c48098a4b23108d1f140d3bb89ed7817444f4bd75423596a9c0d9f3b684e2cd9 \
-                        size    11797
+checksums               rmd160  35431ed5d52a82f8ccf80f6918c1ed0c15a88229 \
+                        sha256  d0baf427ac3b126e3e509052cfc583b65b88df309c8df1fcc197668bcaef60d0 \
+                        size    12871
 
 build {
     system "cd ${worksrcpath} && swiftc -O -parse-as-library unxip.swift"
