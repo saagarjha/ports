@@ -5,7 +5,7 @@ name                swift-format
 description         Formatting technology for Swift source code
 long_description    {*}${description}
 
-github.setup        apple swift-format 508.0.0
+github.setup        apple swift-format 508.0.1
 platforms           darwin
 
 maintainers         @saagarjha
@@ -13,9 +13,9 @@ maintainers         @saagarjha
 use_configure       no
 use_xcode           yes
 
-checksums           rmd160  f4720559fa7c2d02639fcc88f7be7cc24a006a30 \
-                    sha256  ccbb17a7c61e39a92ca39246d4e7efc8ef4966a1fd2ffc68631fa7e0f9ee3cc8 \
-                    size    225043
+checksums           rmd160  9253252a2daec2524c797661b8df97b9dd8a9fde \
+                    sha256  340f41ed756615b6858c6a7e4af14b9b3a9216bb3addc1866540a5d6cdacfcd4 \
+                    size    225026
 
 build {
 	system "cd ${worksrcpath} && swift build --disable-sandbox -c release"
